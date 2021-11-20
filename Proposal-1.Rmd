@@ -1,0 +1,104 @@
+---
+title: "Proposal"
+author: "Group4"
+date: "11/19/2021"
+output: html_document
+---
+
+Group member: Suhui L, Jiaying J, Shuren H, Zihan Z
+
+Github: https://github.com/zzh611/cryptocurrency
+
+## Decription of dataset
+
+This is a collection of 1 minute candlesticks of the top 1000 cryptocurrency pairs on Binance.com. We take '1INCH-BTC' as an example to show you our dataset.
+
+```{r load,echo=FALSE}
+library(arrow)
+setwd("/Users/kelly/Desktop/stat605")
+```
+
+```{r read}
+data<-read_parquet("1INCH-BTC.parquet", as_tibble = TRUE)
+colnames(data)
+```
+
+## Explaination of variables
+
+open&high&low&close: candlestick data of cryptocurrency pairs
+
+volume: total trading amount of the first currency in the cryptocurrency pair
+
+quote_asset_volume: total trading amount of the second currency in the cryptocurrency pair
+
+number_of_trades: the number of cryptocurrency pair trades in the timeframe
+taker_buy_base_asset_volume: the amount of placed orders for the first currency in the cryptocurrency pair
+
+taker_buy_quote_asset_volume: the amount of placed orders for the second currency in the cryptocurrency pair
+
+open_time: the start time of recording
+
+
+```{r read1, warning=FALSE}
+data$maker_buy_base_asset_volumn <- data$volume - data$taker_buy_base_asset_volume
+data$maker_buy_quote_asset_volumn <- data$quote_asset_volume - data$taker_buy_quote_asset_volume
+data$ratio <- data$maker_buy_base_asset_volumn / data$maker_buy_quote_asset_volumn
+```
+
+## Summary of data
+
+```{r summary}
+summary(data)
+```
+
+## Plots
+
+In this plot, "open_time" is the independent variable and 4 kinds of price (high, low, open, close) are dependent variables. This shows us the trend of each price from 2020-12-24 to 2021-11-10.
+
+```{r Price}
+library(ggplot2)
+ggplot(data, aes(x=open_time)) +
+  geom_line(aes(y=high),size=0.2, colour = "green") +
+  geom_line(aes(y=low),size=0.2, colour = "red") +
+  geom_line(aes(y=open),size=0.2, colour = "yellow") +
+  geom_line(aes(y=close),size=0.2, colour = "blue") +
+  ggtitle("Price VS Time") +
+  ylab("Price") +
+  xlab("Time") 
+```
+
+In this plot, "open_time" is the independent variable and "volume" is the dependent variable. This shows us different transaction volumes in every minute from 01/04/2021 23:00:00 to 01/05/2021 22:59:00.
+
+```{r Volume}
+vol <- data[c(14400:15840),]
+ggplot(vol, aes(x=open_time)) +
+  geom_line(aes(y=volume),size=0.2, colour = "skyblue") +
+  ggtitle("Volume VS Time on 01/04/2021") +
+  ylab("volume") +
+  xlab("Time") 
+```
+
+In this plot, "Ratio" is the independent variable and "Price" is the dependent variable. This shows us "Ratio" and "Price" are close to inversely proportional, which means that when "Price" goes up, the "Ratio" will go down.
+
+```{r Ratio, warning = FALSE}
+library(ggplot2)
+ggplot(data, aes(x=ratio, y=close)) +
+  geom_line() +
+  ggtitle("Close VS Ratio") +
+  ylab("Price") +
+  xlab("Ratio") 
+```
+
+## Statistical methods
+
+1. Predict the future trend of every trading pair base on several models, such as ARMA, ARIMA, GARCH, RNN, LSTM. Select the best model to fit this dataset.
+
+2. Find the most strongly correlated cryptocurrency pairs for each cryptocurrency by comparing the variance and bias.
+
+## Computational steps
+
+1. Clean the raw data and make sure that the start and end of "open_time" is the same for each file
+2. Use the statistical method and write a "job.sh" to deal with a single file
+3. Distribute the job to 1000 files using "submit.sh" by HPC
+4. Merge all the work together
+
