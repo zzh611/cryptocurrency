@@ -1,0 +1,23 @@
+# Before running this with "condor_submit myscript.sub", the
+# directories log, error, and output must exist.
+
+universe = vanilla
+log    =    log/stable_$(Cluster)_$(Process).log
+error  =  error/stable_$(Cluster)_$(Process).err
+output = output/stable_$(Cluster)_$(Process).out
+
+executable = ./stable.sh
+# The two arguments below are:
+# - the process number (0 or 1, since I used "queue 2")
+# - an output file name (myscript.R.0.txt or myscript.R.1.txt)
+arguments = $(file)
+
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+transfer_input_files = http://proxy.chtc.wisc.edu/SQUID/chtc/R402.tar.gz, packages.tar.gz, stabel.R, data/$(file).parquet
+
+request_cpus = 1
+request_memory = 1GB
+request_disk = 1GB
+
+queue file from filename.txt
