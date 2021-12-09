@@ -1,0 +1,273 @@
+---
+title: "Cryptocurrency Analysis"
+author: "Shuren He, Suhui Liu, Kelly Zihan Zhao, Jiaying Jia"
+date: "12/6/2021"
+output: 
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: vignette
+---
+
+> Group members: Shuren He, Suhui Liu, Kelly Zihan Zhao, Jiaying Jia
+
+> Github: https://github.com/zzh611/cryptocurrency
+
+## 1. Background and Data Introduction
+
+In recent years, with the popularity of Bitcoin, a variety of cryptocurrencies have emerged. To help investors better understanding and choosing which cryptocurrency to invest in, we used time series dataset of 1000 cryptocurrency pairs on Binance.com. sourced from Kaggle.
+
+Why do we research on cryptocurrency pairs instead of their relative price to the dollar? There are two main reasons: Some cryptocurrencies can only be bought with other cryptocurrencies; crypto trading pairs gives savvy crypto investors the chance to exploit arbitrage opportunities.
+
+## 2. Variance fluctuation
+
+We want to find the most stable and most volatile pair from 1000 cryptocurrency pairs. Stable currencies means a close relationship between 2 types of crypto. Volatile currencies means you will make a lot of profit or loss. We use variance to measure the level of fluctuation, which can help people make decisions for their investment.
+
+We use the currency with "open_time" between 2020-01-01 23:00:00 CST and 2021-01-01 23:00:00 CST. We use open ratio to calculate the variance for each pair. The most stable pair is HBAR-USDT and the most volatile pair is BTC-BIDR. After we run 1000 parallel jobs on CHTC, we find the most stable pair is HBAR-USDT and the most volatile pair is BTC-BIDR. 
+
+As for application of our findings, we believe risk-averters should prefer investment into the stable pairs, while risk-seekers could choose the pairs with larger fluctuation to achieve potential larger benefit.
+
+```{r global, echo=FALSE, message=FALSE}
+library(arrow)
+library(ggplot2)
+setwd("/Users/kelly/Desktop/stat605")
+```
+
+
+```{r stable,fig.width=4, fig.height=4, fig.align='center', echo=F}
+par(mfrow=c(1,2))
+volatile <- read_parquet("BTC-BIDR.parquet", as_tibble = TRUE)
+volatile <- volatile[which(volatile$open_time >= '2020-01-01 23:00:00 CST'),]
+volatile <- volatile[which(volatile$open_time <= '2021-01-01 23:00:00 CST'),]
+ggplot(volatile, aes(x=open_time)) +
+  geom_line(aes(y=open),size=0.2) +
+  ggtitle("The most volatile pair (BTC-BIDR)") +
+  ylab("BTC-BIDR(Ratio)") +
+  xlab("Time") 
+
+stable <- read_parquet("HBAR-USDT.parquet", as_tibble = TRUE)
+stable <- stable[which(stable$open_time >= '2020-01-01 23:00:00 CST'),]
+stable <- stable[which(stable$open_time <= '2021-01-01 23:00:00 CST'),]
+ggplot(stable, aes(x=open_time)) +
+  geom_line(aes(y=open),size=0.2) +
+  ggtitle("The most stable pair (HBAR-USDT)") +
+  ylab("HBAR/USDT(Ratio)") +
+  xlab("Time") 
+```
+
+
+## 3. Time Series Model 
+
+### RNN Model:
+```{r fig.width=6, fig.height=6, fig.align='center',echo=F,eval=F,message=F}
+dat<-read_parquet("./data/ADA-TRY.parquet", as_tibble = TRUE)
+dat <- dat[(dat$open_time <= "2021-11-01 23:00:00")&(dat$open_time >= "2020-01-01 23:00:00"),]
+dat <- na.omit(dat)
+data <- dat$open
+#data <- (data-min(data))/(max(data)-min(data))
+data_test <- data[round(length(data)*0.8):length(data)]
+data_train <- data[1:(round(length(data)*0.8)-1)]
+maxlen <- 7
+exch_matrix<- matrix(0, nrow = length(data_train)-maxlen-1, ncol = maxlen+1) 
+
+for(i in 1:(length(data_train)-maxlen-1)){
+  exch_matrix[i,] <- data_train[i:(i+maxlen)]
+}
+
+x_train <- exch_matrix[, -ncol(exch_matrix)]
+y_train <- exch_matrix[, ncol(exch_matrix)]
+x_train <- array_reshape(x_train, dim = c((length(data_train)-maxlen-1), maxlen, 1))
+
+model <- keras_model_sequential()
+model %>% layer_dense(input_shape = dim(x_train)[-1], units=maxlen)
+model %>% layer_simple_rnn(units= 10)%>%layer_dense(units = 1)
+
+summary(model)
+model %>% compile(
+  loss = "mse",
+  optimizer= "adam",
+  metric = "mae" 
+)
+
+history <- model %>% 
+  fit(x_train, y_train, epochs = 5, batch_size = 32, validation_split=0.1)
+save_model_hdf5(model, "rnn_model.h5")
+rnn_model <- load_model_hdf5("rnn_model.h5")
+
+maxlen <- 7
+exch_matrix2<- matrix(0, nrow = length(data)-maxlen-1, ncol = maxlen+1) 
+for(i in 1:(length(data)-maxlen-1)){
+  exch_matrix2[i,] <- data[i:(i+maxlen)]
+}
+
+
+x_train2 <- exch_matrix2[, -ncol(exch_matrix2)]
+y_train2 <- exch_matrix2[, ncol(exch_matrix2)]
+pred <- rnn_model %>% predict(x_train2)
+df_eval_rnn <- tibble::tibble(y_rnn=y_train2[round(length(y_train2)*0.8):length(y_train2)],
+                              yhat_rnn=as.vector(pred)[round(length(y_train2)*0.8):length(y_train2)])
+```
+
+```{r fig.width=6, fig.height=6, fig.align='center',message=F,echo=F}
+knitr::include_graphics("1INCH-BTC-RNN.png")
+knitr::include_graphics("1INCH-USDT-RNN.png")
+```
+
+### ARIMA Model:
+```{r fig.width=6, fig.height=6, fig.align='center',eval=F,message=F,echo=F}
+#auto_fit_model
+est.white.noise <- function(x){
+  p_value = c()
+  for (i in 1:2)
+  {
+    tmp <- Box.test(x, type='Ljung-Box', lag=6*i)
+    p_value = append(p_value,tmp[[3]]) 
+  }
+  if(min(p_value) <= 0.05)
+  {
+    return(1)
+  }
+  else 
+  {
+    return(0)
+  }
+}
+est.model <- function(x)
+{
+  non.white = est.white.noise(x)
+  if(non.white==1)
+  {
+    auto.model <- auto.arima(x,max.p = 5, max.q = 5,ic = 'aic')
+    delta <- auto.model$model$Delta[1]
+    phi_length = length(auto.model$model$phi)
+    phi = phi_length
+    if(phi_length>0)
+    {
+      for(i in 1:phi_length)
+      {
+        if(abs(auto.model$model$phi[(phi_length-i+1)])>0)
+        {
+          break
+        }
+        else
+        {
+          phi=phi-1
+        }
+      }
+    }
+    theta_length = length(auto.model$model$theta)
+    theta = theta_length
+    if(theta>0)
+    {
+      for(i in 1:theta_length)
+      {
+        if(abs(auto.model$model$theta[(theta_length-i+1)])>0)
+        {
+          break
+        }
+        else
+        {
+          theta=theta-1
+        }
+      }
+    }
+    return(arima(x,order = c(phi,delta,theta)))
+  }
+  else{
+    return(0)
+  }
+}
+
+for( j in 1:length(names)){ 
+  dat <- dat_list[[j]]
+  dat <- na.omit(dat)
+  dat <- dat[(dat$open_time <= "2021-11-01 23:00:00")&(dat$open_time >= "2020-01-01 23:00:00"),]
+  if(nrow(dat)<30000)
+  {
+    next
+    #stop("data length is not enough")
+  }
+  dat <- na.omit(dat)
+  x <- dat$open[seq(from=1, to=nrow(dat), by=1440)]
+  x<-ts(x)
+  x.fit = est.model(x) #如果est.model return的是0，说明是白噪声，没有拟合的意义。
+  if(length(x.fit) > 1)
+  {
+    file_path = paste0(plot_output,"/",names[[j]],".jpg")
+    fore <- forecast::forecast(x.fit,h = 10);fore
+    png(file=file_path) #这里设置图片的输出地址
+    #par(mfrow=c(1,1))
+    plot(fore,ylab =paste0(gsub('-','/',names[[j]]),"  Ratio"),main = paste0(names[[j]]," Pair"))
+    text(2014,315,'294.3',cex = 0.8)
+    lines(fore$fitted,col="red",lty = 2)
+    legend("topleft",legend=c("real value","pred value","forecasted value"),col=c("black","red","#619cff"),lty = c(1,2,1),lwd=1)  
+    dev.off()
+  }
+}
+```
+
+```{r fig.width=6, fig.height=6, fig.align='center',echo=F,warning=F,message=F}
+library(forecast)
+library(arrow)
+library(zoo)
+#white noise test
+set.seed(1)
+path <-paste(getwd(),'data',sep ='/')
+fileNames <- dir(path)[1]
+filePath <- sapply(fileNames, function(x){paste(path,x,sep = '/')})
+dat <- read_parquet(filePath)
+knitr::include_graphics("1INCH-BTC-ARI.png")
+knitr::include_graphics("1INCH-USDT-ARI.png")
+```
+
+1. RNN model is not stable.
+
+2. ARIMA Model is much more stable for various data.
+
+### Test whether the time series data is white noise.
+```{r fig.width=6, fig.height=6, fig.align='center',echo = F, warning = F}
+x <- dat$open
+for (i in 1:2) print(Box.test(x, type='Ljung-Box', lag=6*i))
+```
+
+1.The time series data not passing the test denotes this it is white noise and there is not need to train the ARIMA model on this data. 
+
+2.Here the p-value is less than 0.05 and we will apply further analysis on this data.
+
+### Automatically choose proper parameters.
+```{r fig.width=6, fig.height=6, fig.align='center'}
+test_dat <- arima.sim(n=100,list(ar=c(1,-0.5)))
+acf(test_dat)
+pacf(test_dat)
+```
+1.The selecting of parameters for ARIMA model is based on the ACF and PACF plots.
+
+2.Our group need to find a method to select the paramters of ARIMA automatically.
+
+### Choose the parameters based on AIC criterion. 
+```{r fig.width=6, fig.height=6, fig.align='center'}
+auto.model <- auto.arima(test_dat,max.p = 5, max.q = 5,ic = 'aic')
+summary(auto.model)
+```
+We use auto.arima to decide the setting of parameters which is based on AIC criterion.
+
+Then we use the ARIMA model to predict the ratio of cryptocurrency pairs for 10 days, and then calculated the difference between the 10th and the first day. If the difference is larger than 0, we choose the second part of the pair. On the contrary, if it’s less than 0, then the first one is preferred. Then, we aggregated all the preferred cryptocurrencies and the differences, and calculated a score value. The function of score is: $$score_j=\frac{1}{choice(j)}\sum_{i=1}^{1000}|forecast_{10ij}-forecast_{1ij}|\times\frac{choice(j)}{n(j)}=\frac{\sum_{i=1}^{1000}|forecast_{10ij}-forecast_{1ij}|}{n(j)}$$
+where i means the serial number of the cryptopair, j means a specific cryptocurrency.
+
+```{r score, echo=FALSE}
+head(read.csv("score.csv"))
+```
+
+## 4. Computational Steps
+
+The dataset is too large(25G) for a personal workspace(20G) on CHTC. So first, we applied for a shared folder by emailing CHTC and they helped us increase the memory of this folder(50G). Then we wrote two sets of .sub file and .sh file to run 1000 jobs in parallel. The first set of code was responsible for finding the most stable/volatile pair in 1000 pairs. And the second set of code produced the predicting results for 1000 cryptocurrency pairs in 10 days.Here are some of the results:
+
+
+## 5. Conclusion
+
+We listed the top 10 stable pairs and the top 10 volatile pairs. For risk avoiders, cryptocurrency pairs like: HBAR-USDT, FTM-USDT, USDT-DAI might be your first choices. As for the risk preference people, BTC-BIDR, BTC-IDRT, BTC-NGN might be better choices.
+
+![](con.png)
+
+As for the prediction part, we use the RNN method to fit a model for the price ratio of cryptocurrency pairs. Generally, RNN performed well in volatile data. But when the data is stable, the result is bad. Thus, we choose the ARIMA model to fit the dataset which does well in both situations.
+
+After deciding which method to use for our dataset, we use large scale computing on CHTC and run 1000 jobs in parallel and get the predicting result for 1000 cryptocurrency pairs.

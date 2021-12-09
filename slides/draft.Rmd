@@ -1,0 +1,151 @@
+---
+title: "Cryptocurrency Analysis"
+author: "group 4"
+date: "12/6/2021"
+output: 
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: vignette
+---
+
+> Group member: Shuren He, Suhui Liu, Kelly Zihan Zhao, Jiaying Jia
+
+> Github: https://github.com/zzh611/cryptocurrency
+
+## 1. Background and Data Introduction
+
+In recent years, with the popularity of Bitcoin, a variety of cryptocurrencies have emerged. Because of the volatility of cryptocurrency, investors have difficulty in choosing which cryptocurrency to invest in. To solve this problem, our group decided to use large scale computing and time series models to predict the future trend of cryptocurrency.
+
+Our data sourced from Kaggle. It is a collection of 1 minute candlesticks of the top 1000 cryptocurrency pairs on Binance.com. This time series data set recorded the price ratio between a bunch of new cryptocurrencies and some specific famous cryptocurrencies. (For example, 1INCH/BTC, 1INCH/BUSD, AAVE/BNB etc.) The reason that we research cryptocurrency pairs instead of one single cryptocurrency each time is that the cryptocurrency community is used to display prices and trade by trading pairs. For example, 1INCH/BUSD means that you can buy or sell 1INCH by BUSD. This means that the dataset for our project is meaningful and practical.
+
+As for details of the dataset, there are 10 columns in total. In our project, we mainly use the “open” (1-minute candlestick data of cryptocurrency pairs prices ratio) column and the “open_time” (the time that starts recording with 1 minute, eg. 2021-02-26 04:00:00, 2021-02-26 04:01:00) column. 
+
+## 2. Variance fluctuation
+
+We want to find the most stable and most volatile pair from 1000 cryptocurrency pairs. Stable currencies means a close relationship between 2 types of crypto. Volatile currencies means you will make a lot of profit or loss. We use variance to measure the level of fluctuation, which can help people make decisions for their investment.
+
+We use the currency between 2020-01-01 23:00:00 CST and 2021-01-01 23:00:00 CST to calculate the variance for each pair. The most stable pair is HBAR-USDT and the most volatile pair is BTC-BIDR. After we run 1000 parallel jobs on CHTC, we find the most stable pair is HBAR-USDT and the most volatile pair is BTC-BIDR.
+
+```{r global, echo=FALSE}
+library(arrow)
+library(ggplot2)
+setwd("/Users/kelly/Desktop/stat605")
+```
+
+
+```{r stable}
+volatile <- read_parquet("BTC-BIDR.parquet", as_tibble = TRUE)
+volatile <- volatile[which(volatile$open_time >= '2020-01-01 23:00:00 CST'),]
+volatile <- volatile[which(volatile$open_time <= '2021-01-01 23:00:00 CST'),]
+ggplot(volatile, aes(x=open_time)) +
+  geom_line(aes(y=open),size=0.2) +
+  ggtitle("The most volatile pair (BTC-BIDR)") +
+  ylab("Price") +
+  xlab("Time") 
+
+stable <- read_parquet("HBAR-USDT.parquet", as_tibble = TRUE)
+stable <- stable[which(stable$open_time >= '2020-01-01 23:00:00 CST'),]
+stable <- stable[which(stable$open_time <= '2021-01-01 23:00:00 CST'),]
+ggplot(stable, aes(x=open_time)) +
+  geom_line(aes(y=open),size=0.2) +
+  ggtitle("The most stable pair (HBAR-USDT)") +
+  ylab("Price") +
+  xlab("Time") 
+```
+
+## 3. Prediction
+
+Our group decided to use both RNN model and ARIMA to predict the trend and compare their performance.  We divided our candlestick data into a training set and test set. The training set contains 80% of data and the training set contains 20% of data. We use the training set to train our model and apply the model on test data and calculate the residuals between the predicted value and true value to test the efficiency of our model and the following  pictures show some predicting results of RNN. 
+
+```{r rnn, eval=FALSE}
+library(tensorflow)
+library(keras) # for deep learning
+library(reticulate)
+use_condaenv('r-reticulate')
+
+setwd("D:/courseware/wisconsin/stat 605/final_group_work/")
+dat<-read_parquet("./data/ADA-TRY.parquet", as_tibble = TRUE)
+dat <- dat[(dat$open_time <= "2021-11-01 23:00:00")&(dat$open_time >= "2020-01-01 23:00:00"),]
+dat <- na.omit(dat)
+data <- dat$open
+#data <- (data-min(data))/(max(data)-min(data))
+data_test <- data[round(length(data)*0.8):length(data)]
+data_train <- data[1:(round(length(data)*0.8)-1)]
+maxlen <- 7
+exch_matrix<- matrix(0, nrow = length(data_train)-maxlen-1, ncol = maxlen+1) 
+
+for(i in 1:(length(data_train)-maxlen-1)){
+  exch_matrix[i,] <- data_train[i:(i+maxlen)]
+}
+
+x_train <- exch_matrix[, -ncol(exch_matrix)]
+y_train <- exch_matrix[, ncol(exch_matrix)]
+x_train <- array_reshape(x_train, dim = c((length(data_train)-maxlen-1), maxlen, 1))
+
+model <- keras_model_sequential()
+model %>% layer_dense(input_shape = dim(x_train)[-1], units=maxlen)
+model %>% layer_simple_rnn(units= 10)%>%layer_dense(units = 1)
+
+summary(model)
+model %>% compile(
+  loss = "mse",
+  optimizer= "adam",
+  metric = "mae" 
+)
+
+history <- model %>% 
+  fit(x_train, y_train, epochs = 5, batch_size = 32, validation_split=0.1)
+save_model_hdf5(model, "rnn_model.h5")
+rnn_model <- load_model_hdf5("rnn_model.h5")
+
+maxlen <- 7
+exch_matrix2<- matrix(0, nrow = length(data)-maxlen-1, ncol = maxlen+1) 
+for(i in 1:(length(data)-maxlen-1)){
+  exch_matrix2[i,] <- data[i:(i+maxlen)]
+}
+
+
+x_train2 <- exch_matrix2[, -ncol(exch_matrix2)]
+y_train2 <- exch_matrix2[, ncol(exch_matrix2)]
+pred <- rnn_model %>% predict(x_train2)
+df_eval_rnn <- tibble::tibble(y_rnn=y_train2[round(length(y_train2)*0.8):length(y_train2)],
+                              yhat_rnn=as.vector(pred)[round(length(y_train2)*0.8):length(y_train2)])
+residual <- sum(abs(df_eval_rnn$yhat_rnn - df_eval_rnn$y_rnn))/nrow(df_eval_rnn)
+write.table(residual,'residual.csv',row.names = F,col.names = F)
+plot(ts(as.vector(pred)),ylab ="ratio", main = 'ADA-TRY Pair')
+lines(ts(data),col="red",lty = 2)
+legend("topleft",legend=c("pred","true"),col=c("red","black"),lty=c(2,1),lwd=1) 
+```
+
+![](rnn1.png)
+
+![](rnn2.png)
+
+![](rnn3.png)
+```{r time, eval = FALSE}
+choice<-read.table('choices.txt',sep = ',')
+combine<-read.table('combine.txt',sep = ',')
+combine<-combine[,-1]%>%as.data.frame()
+combine[combine=='x']<-NA
+combine<-na.omit(combine)
+dat<-cbind(combine,choice)
+names(dat)<-c('diff','choice')
+dat$diff<-dat$diff%>%as.numeric()
+a<-dat%>%group_by(choice)%>%summarise(avg=mean(diff), count=n())%>%
+  mutate(score=abs(avg*count))%>%arrange(-score)
+```
+
+As it can be seen from the plot, RNN is good at predicting the trend of fluctuating data, but not good at predicting smooth data. So we finally decided to use the ARIMA model to predict the ratio of cryptocurrency pairs for 10 days, and then calculate the difference between the 10th and the first day. If the difference is larger than 0, then we choose the second part of the pair. On the contrary, if it’s less than 0, then the first one is preferred. Then, we aggregated all the preferred cryptocurrencies and the differences, and calculated a score value. The following table shows the results.
+
+![ ](time.png)
+
+
+## 4. Conclusion
+
+We listed the top 10 stable pairs and the top 10 volatile pairs. For risk avoiders, cryptocurrency pairs like: HBAR-USDT, FTM-USDT, USDT-DAI might be your first choices. As for the risk preference people, BTC-BIDR, BTC-IDRT, BTC-NGN might be better choices.
+
+![](con.png)
+
+As for the prediction part, we use the RNN method to fit a model for the price ratio of cryptocurrency pairs. Generally, RNN performed wel in volatile data. But when the data is stable, the result is bad. Thus, we choose the ARIMA model to fit the dataset which does well in both situations.
+
+After deciding which method to use for our dataset, we use large scale computing on CHTC and run 1000 jobs in parallel and get the predicting result for 1000 cryptocurrency pairs.
