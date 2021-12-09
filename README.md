@@ -17,7 +17,6 @@ This project will focus on cryptocurrency pairs candledisk data from kaggle, and
 ***
 ## Dependencies
 - [R 4.0+](https://www.r-project.org/)
-- [Chtc](ssh netid@learn.chtc.wisc.edu)
 
 
 ## Installation
