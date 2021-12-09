@@ -41,7 +41,7 @@ install_tensorflow(method = 'conda', envname = 'r-reticulate')
 
 
 ## Acknowledgements
-This is a project of STAT 709 Fall 2021 at UW-Madison, supervised by Prof. John .
+This is a project of STAT 605 Fall 2021 at UW-Madison, supervised by Prof. John Gillett.
 
 
 ## Contributors
