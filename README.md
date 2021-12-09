@@ -47,5 +47,5 @@ This is a project of STAT 605 Fall 2021 at UW-Madison, supervised by Prof. John 
 - **Shuren He** - (she249@wisc.edu) : Contribute to most part of the code for time series model including Arima and RNN and report writing.
 - **Suhui Liu** - (sliu736@wisc.edu) : Contribute to .
 - **Jiaying Jia** - (jjia35@wisc.edu) : Contribute to .
-- ** Zihan Zhao** - (zzhao387@wisc.edu) : Contribute to .  
+- **Zihan(Kelly) Zhao** - (zzhao387@wisc.edu) : Contribute to .  
 
