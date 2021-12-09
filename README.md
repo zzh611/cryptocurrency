@@ -1,4 +1,4 @@
-# YelpDataAnalysis
+# Cryptocurrency Analysis
 This project will focus on cryptocurrency pairs candledisk data from kaggle, and our targets for this project include: finding the most stable and most volatile pair from 1000 cryptocurrency pairs, forecasting the trend of cryptocurrency pairs by arima model and proposing investment suggestions.
 ***
 
