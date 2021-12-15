@@ -54,5 +54,5 @@ This is a project of STAT 605 Fall 2021 at UW-Madison, supervised by Prof. John 
 - **Shuren He** - (she249@wisc.edu) : Contribute to the code for time series model including Arima and RNN, plots for demonstration, report writing and tidy the github.  
 - **Suhui Liu** - (sliu736@wisc.edu) : Contribute to configure the CHTC enviornment, revise the paralleljob.R into executable format, run 1000 predicting parallel jobs, write part of the report, calculated the score value. 
 - **Jiaying Jia** - (jjia35@wisc.edu) : Contribute to Contribute to uploading 25G datafile on CHTC platform and the background, data introduction and computational steps part in report.
-- **Zihan(Kelly) Zhao** - (zzhao387@wisc.edu) : Contribute to the code and computational steps for variance fluactuation
+- **Kelly Zihan Zhao** - (zzhao387@wisc.edu) : Contribute to the code and computational steps for variance fluactuation
 
