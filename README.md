@@ -43,7 +43,7 @@ install_tensorflow(method = 'conda', envname = 'r-reticulate')
 - [stable.R](code/stable_code/stable.R) - R code for find the variance for each crytocurrency pair.
 - [stable.sh](code/stable_code/stable.sh) - run stable.R code on CHTC.
 - [stable.sub](code/stable_code/stable.sub)  - use `condor_submit stable.sub` to create 1000 jobs and run 1000 stable.sh times on 1000 data files.
-
+- [combine.sh](code/time_series_code/combine.sh) - create combine.txt(combination of 1000 prediction results) and choices.txt(1000 prediction choices)
 
 
 ## Acknowledgements
