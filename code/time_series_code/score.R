@@ -1,4 +1,3 @@
-setwd('/Users/tuoyuaner/Desktop')
 library(tidyverse)
 choice<-read.table('choices.txt',sep = ',')
 combine<-read.table('combine.txt',sep = ',')
