@@ -36,6 +36,7 @@ install_tensorflow(method = 'conda', envname = 'r-reticulate')
 ## File Description in Code Folder
 - [arima_plot.R](code/time_series_code/arima_plot.R) - R code for testing the arima model and drawing the plots.
 - [RNN_plot.R](code/time_series_code/RNN_plot.R) - R code for testing the RNN model and drawing the plots.
+- [stable.R](code/stable_code/stable.R) - R code for find the variance for each crytocurrency pair.
 
 
 
