@@ -40,6 +40,9 @@ install_tensorflow(method = 'conda', envname = 'r-reticulate')
 - [install_R.sh](code/time_series_code/install_R.sh) -  interactive.sub: download R packages myscript.sh, myscript.sub: run paralleljob.R.
 - [paralleljob.R](code/time_series_code/paralleljob.R) - R code for predicting cryptocurrency pairs' trend and getting choices.
 - [RNN_plot.R](code/time_series_code/score.R) - R code for calculating scores based on choices and filenames.
+- [stable.R](code/stable_code/stable.R) - R code for find the variance for each crytocurrency pair.
+- [stable.sh](code/stable_code/stable.sh) - run stable.R code on CHTC.
+- [stable.sub](code/stable_code/stable.sub)  - use `condor_submit stable.sub` to create 1000 jobs and run 1000 stable.sh times on 1000 data files.
 
 
 
@@ -51,5 +54,5 @@ This is a project of STAT 605 Fall 2021 at UW-Madison, supervised by Prof. John 
 - **Shuren He** - (she249@wisc.edu) : Contribute to the code for time series model including Arima and RNN, plots for demonstration, report writing and tidy the github.  
 - **Suhui Liu** - (sliu736@wisc.edu) : Contribute to configure the CHTC enviornment, revise the paralleljob.R into executable format, run 1000 predicting parallel jobs, write part of the report, calculated the score value. 
 - **Jiaying Jia** - (jjia35@wisc.edu) : Contribute to Contribute to uploading 25G datafile on CHTC platform and the background, data introduction and computational steps part in report.
-- **Zihan(Kelly) Zhao** - (zzhao387@wisc.edu) : Contribute to .  
+- **Zihan(Kelly) Zhao** - (zzhao387@wisc.edu) : Contribute to the code and computational steps for variance fluactuation
 
